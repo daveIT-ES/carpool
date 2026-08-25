@@ -59,6 +59,10 @@
         <input id="fecha_viaje" name="fecha_viaje" type="date" value="{{ hoy }}" required>
       </div>
       <div>
+        <label for="hora_salida">Hora de salida</label>
+        <input id="hora_salida" name="hora_salida" type="time" value="{{ hora_ahora }}">
+      </div>
+      <div>
         <label for="pasajeros">Pasajeros que comparten el gasto</label>
         <input id="pasajeros" name="pasajeros" type="number" min="1" max="6" value="1" required>
       </div>
@@ -69,6 +73,10 @@
       A partir de {{ '%.0f'|format(umbral_reparto) }} km de ida el importe se reparte entre los
       pasajeros. Por debajo, cada pasajero paga el trayecto entero.
       Si te toca pagar más de {{ '%.2f'|format(umbral_prepago) }} €, se abona por adelantado.
+      {% if recargo_noche > 0 %}
+      Entre las {{ noche_desde }} y las {{ noche_hasta }} se aplica un
+      {{ '%.0f'|format(recargo_noche) }} % de recargo nocturno.
+      {% endif %}
     </div>
   </div>
 
@@ -174,6 +182,7 @@
     const datos = new FormData();
     datos.append("puntos_json", campoJson.value);
     datos.append("pasajeros", form.pasajeros.value || 1);
+    datos.append("hora_salida", form.hora_salida.value || "");
     datos.append("ida_vuelta", idaVuelta.value);
     try {
       const r = await fetch("/viajes/calcular", { method: "POST", body: datos });
@@ -198,8 +207,13 @@
       const r = await fetch("/api/geo/buscar?q=" + encodeURIComponent(q)
                             + "&lat=" + c.lat.toFixed(4) + "&lon=" + c.lng.toFixed(4));
       const d = await r.json();
+      if (d.error) {
+        caja2.innerHTML = '<p class="aviso-geo">' + d.error + "</p>";
+        return;
+      }
       if (!d.resultados || !d.resultados.length) {
-        caja2.innerHTML = '<p class="hint">Sin resultados. Prueba con otra búsqueda o toca el mapa.</p>';
+        caja2.innerHTML = '<p class="hint">Sin resultados para «' + q
+          + '». Prueba con menos detalle (solo el pueblo o la calle) o toca el mapa.</p>';
         return;
       }
       caja2.innerHTML = d.resultados.map(s =>
@@ -207,7 +221,8 @@
         + '" data-nombre="' + s.nombre.replace(/"/g, "&quot;") + '">' + s.nombre + "</button>"
       ).join("");
     } catch (e) {
-      caja2.innerHTML = '<p class="hint">No se ha podido buscar ahora mismo.</p>';
+      caja2.innerHTML = '<p class="aviso-geo">No se ha podido buscar. '
+        + 'Marca el punto tocando el mapa.</p>';
     }
   }
 
@@ -303,6 +318,7 @@
   });
 
   form.pasajeros.addEventListener("change", function () { refrescar(false); });
+  form.hora_salida.addEventListener("change", function () { refrescar(false); });
 
   caja.addEventListener("click", function (ev) {
     const b = ev.target.closest("[data-vuelta]");

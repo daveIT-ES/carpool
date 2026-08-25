@@ -136,10 +136,23 @@ Administrador → **Parámetros**:
 | Reparto a partir de | Km de ida desde los que el coste se divide entre pasajeros |
 | Consumo | L/100 km reales de tu coche |
 | Desgaste | €/km. Entre 0,05 y 0,12 en un turismo |
+| Recargo nocturno | % extra si la salida cae en la franja de noche. A 0 % está desactivado |
+| Desde / Hasta | Franja nocturna, p. ej. 22:00 a 06:00. Admite cruzar medianoche |
 
 Cambiar estos valores **no recalcula los viajes ya registrados**: cada viaje guarda una copia de los parámetros con los que se calculó.
 
 ---
+
+## Recargo nocturno
+
+Se configura en *Parámetros*. El porcentaje se aplica sobre el coste del
+recorrido (combustible + desgaste) y se reparte entre los pasajeros igual que
+el resto cuando toca reparto. La hora de salida la indica el usuario al
+registrar el viaje; si la deja en blanco, no hay recargo.
+
+> Ten en cuenta que un recargo por tu tiempo ya no es reparto de gastos: es
+> una contraprestación. Revisa la nota sobre encaje legal del README antes de
+> ponerlo a un valor alto.
 
 ## Copias de seguridad
 
@@ -187,7 +200,22 @@ git pull
 docker compose up -d --build
 ```
 
-Haz una copia antes si el cambio toca la base de datos.
+Si la nueva versión añade columnas a la base de datos, después:
+
+```bash
+./scripts/migrar.sh
+```
+
+Es seguro ejecutarlo varias veces. Haz una copia antes por si acaso.
+
+## Diagnóstico
+
+```bash
+./scripts/diagnostico.sh
+```
+
+Comprueba contenedores, la web, el servicio de rutas, el DNS y la salida a
+internet del buscador de direcciones.
 
 ---
 

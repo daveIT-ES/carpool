@@ -5,7 +5,7 @@
 <div class="ticket">
   <div class="ticket-head">
     <span>Viaje #{{ viaje.id }} · {{ dueno.alias }}</span>
-    <span>{{ viaje.fecha_viaje.strftime('%d/%m/%Y') }}</span>
+    <span>{{ viaje.fecha_viaje.strftime('%d/%m/%Y') }}{% if viaje.hora_salida %} · {{ viaje.hora_salida }}{% endif %}{% if viaje.nocturno %} · nocturno{% endif %}</span>
   </div>
   <div class="ticket-body">
     <div class="tear"></div>
@@ -42,6 +42,10 @@
       <span class="v">{{ '%.4f'|format(viaje.desgaste_eur_km) }} €/km</span></div>
     <div class="line"><span class="k">Coste del trayecto</span><span class="dots"></span>
       <span class="v">{{ '%.2f'|format(viaje.coste_total) }} €</span></div>
+    {% if viaje.nocturno %}
+    <div class="line"><span class="k">Recargo nocturno ({{ '%.0f'|format(viaje.recargo_pct) }} %)</span>
+      <span class="dots"></span><span class="v">{{ '%.2f'|format(viaje.recargo_importe) }} €</span></div>
+    {% endif %}
     <div class="line"><span class="k">Pasajeros</span><span class="dots"></span>
       <span class="v">{{ viaje.pasajeros }}{{ ' · repartido' if viaje.reparto_aplicado else ' · sin reparto' }}</span></div>
 

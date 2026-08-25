@@ -25,6 +25,9 @@ DEFAULTS = {
     "precio_litro": "1.550",       # €/litro
     "umbral_prepago": "10.00",     # € — por encima se paga por adelantado
     "umbral_reparto_km": "40.00",  # km de IDA — por encima se reparte entre pasajeros
+    "recargo_noche_pct": "0.00",   # % extra en horario nocturno (0 = desactivado)
+    "noche_desde": "22:00",
+    "noche_hasta": "06:00",
     "moneda": "EUR",
     "aviso_home": "",
 }

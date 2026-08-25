@@ -89,6 +89,7 @@ class Trip(SQLModel, table=True):
     ruta: str = Field(default="", max_length=500)     # "A -> B -> C" para listados
     puntos: list = Field(default_factory=list, sa_column=Column(JSON))
     fecha_viaje: date
+    hora_salida: Optional[str] = Field(default=None, max_length=5)   # "HH:MM"
 
     km_ida: Decimal = _money()          # origen -> paradas -> destino
     km_vuelta: Decimal = _money()       # destino -> origen (0 si es solo ida)
@@ -104,7 +105,11 @@ class Trip(SQLModel, table=True):
     umbral_reparto_km: Decimal = _money()
     umbral_prepago: Decimal = _money()
 
-    coste_total: Decimal = _money()
+    nocturno: bool = Field(default=False)
+    recargo_pct: Decimal = _money()          # % aplicado por horario nocturno
+    recargo_importe: Decimal = _money()
+
+    coste_total: Decimal = _money()          # combustible + desgaste + recargo
     coste_usuario: Decimal = _money()
     reparto_aplicado: bool = Field(default=False)
 

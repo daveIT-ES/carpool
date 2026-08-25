@@ -1,7 +1,7 @@
 """Panel del usuario: deuda, historial y alta de viajes con paradas."""
 
 import json
-from datetime import date
+from datetime import date, datetime
 from decimal import Decimal
 from math import asin, cos, radians, sin, sqrt
 
@@ -10,7 +10,7 @@ from sqlmodel import Session, select
 
 from ..costing import calcular
 from ..config import get_settings
-from ..database import get_decimal, get_session
+from ..database import get_decimal, get_session, get_setting
 from ..deps import deuda_de, flash, redirect, render, require_user
 from ..models import AuditLog, Payment, Place, Trip, TripStatus, User, Vehicle
 from ..routing import MAX_PARADAS, Punto, RoutingError, ruta
@@ -32,6 +32,9 @@ def _parametros(session: Session, vehiculo: Vehicle) -> dict:
         "desgaste_eur_km": vehiculo.desgaste_eur_km,
         "umbral_reparto_km": get_decimal(session, "umbral_reparto_km"),
         "umbral_prepago": get_decimal(session, "umbral_prepago"),
+        "recargo_noche_pct": get_decimal(session, "recargo_noche_pct"),
+        "noche_desde": get_setting(session, "noche_desde"),
+        "noche_hasta": get_setting(session, "noche_hasta"),
     }
 
 
@@ -87,7 +90,11 @@ def _puntos_desde_json(crudo: str) -> list[Punto]:
 
 
 async def _presupuesto(
-    session: Session, puntos: list[Punto], ida_vuelta: bool, pasajeros: int
+    session: Session,
+    puntos: list[Punto],
+    ida_vuelta: bool,
+    pasajeros: int,
+    hora_salida: str | None = None,
 ):
     vehiculo = _vehiculo(session)
     if vehiculo is None:
@@ -105,6 +112,7 @@ async def _presupuesto(
         km_ida=km_ida,
         km_vuelta=km_vuelta,
         pasajeros=pasajeros,
+        hora_salida=hora_salida,
         **_parametros(session, vehiculo),
     )
     return vehiculo, coste, min_ida + min_vuelta, trazado
@@ -161,12 +169,16 @@ def nuevo_form(
         favoritos=favoritos,
         vehiculo=_vehiculo(session),
         hoy=date.today().isoformat(),
+        hora_ahora=datetime.now().strftime("%H:%M"),
         max_paradas=MAX_PARADAS,
         mapa_lat=cfg.mapa_lat,
         mapa_lon=cfg.mapa_lon,
         mapa_zoom=cfg.mapa_zoom,
         umbral_reparto=get_decimal(session, "umbral_reparto_km"),
         umbral_prepago=get_decimal(session, "umbral_prepago"),
+        recargo_noche=get_decimal(session, "recargo_noche_pct"),
+        noche_desde=get_setting(session, "noche_desde"),
+        noche_hasta=get_setting(session, "noche_hasta"),
     )
 
 
@@ -176,6 +188,7 @@ async def calcular_precio(
     puntos_json: str = Form("[]"),
     ida_vuelta: str = Form(""),
     pasajeros: int = Form(1),
+    hora_salida: str = Form(""),
     user: User = Depends(require_user),
     session: Session = Depends(get_session),
 ):
@@ -187,7 +200,7 @@ async def calcular_precio(
     try:
         puntos = _puntos_desde_json(puntos_json)
         vehiculo, coste, minutos, trazado = await _presupuesto(
-            session, puntos, quiere_vuelta, pasajeros
+            session, puntos, quiere_vuelta, pasajeros, hora_salida
         )
     except RoutingError as exc:
         return render(request, "_presupuesto.html", error=str(exc))
@@ -212,6 +225,7 @@ async def crear_viaje(
     puntos_json: str = Form("[]"),
     ida_vuelta: str = Form(""),
     pasajeros: int = Form(1),
+    hora_salida: str = Form(""),
     notas: str = Form(""),
     csrf: str = Form(""),
     user: User = Depends(require_user),
@@ -238,7 +252,7 @@ async def crear_viaje(
     try:
         puntos = _puntos_desde_json(puntos_json)
         vehiculo, coste, minutos, _trazado = await _presupuesto(
-            session, puntos, ida_vuelta == "true", pasajeros
+            session, puntos, ida_vuelta == "true", pasajeros, hora_salida
         )
     except RoutingError as exc:
         flash(request, str(exc), "error")
@@ -252,12 +266,16 @@ async def crear_viaje(
         ruta=" → ".join(p.nombre for p in puntos)[:500],
         puntos=[p.como_dict() for p in puntos],
         fecha_viaje=fecha,
+        hora_salida=(hora_salida.strip()[:5] or None),
         km_ida=coste.km_ida,
         km_vuelta=coste.km_vuelta,
         ida_vuelta=ida_vuelta == "true",
         km_total=coste.km_total,
         duracion_min=minutos,
         pasajeros=max(1, pasajeros),
+        nocturno=coste.nocturno,
+        recargo_pct=coste.recargo_pct,
+        recargo_importe=coste.recargo_importe,
         coste_total=coste.coste_total,
         coste_usuario=coste.coste_usuario,
         reparto_aplicado=coste.reparto_aplicado,

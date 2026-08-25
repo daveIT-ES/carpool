@@ -443,3 +443,12 @@ tbody tr:hover { background: rgba(31, 94, 75, 0.04); }
 
 .punto + .punto { margin-top: 0.9rem; }
 .parada-fila { padding-bottom: 0.6rem; border-bottom: 1px dotted var(--rule); margin-bottom: 0.6rem; }
+
+.aviso-geo {
+  font-family: var(--mono);
+  font-size: 0.76rem;
+  color: var(--stamp);
+  border-left: 2px solid var(--stamp);
+  padding: 0.3rem 0 0.3rem 0.5rem;
+  margin: 0.4rem 0 0;
+}

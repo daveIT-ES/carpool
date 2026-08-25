@@ -316,6 +316,9 @@ def config(
         precio_litro=get_setting(session, "precio_litro"),
         umbral_prepago=get_setting(session, "umbral_prepago"),
         umbral_reparto_km=get_setting(session, "umbral_reparto_km"),
+        recargo_noche_pct=get_setting(session, "recargo_noche_pct"),
+        noche_desde=get_setting(session, "noche_desde"),
+        noche_hasta=get_setting(session, "noche_hasta"),
         aviso_home=get_setting(session, "aviso_home"),
     )
 
@@ -326,6 +329,9 @@ def guardar_config(
     precio_litro: str = Form(...),
     umbral_prepago: str = Form(...),
     umbral_reparto_km: str = Form(...),
+    recargo_noche_pct: str = Form("0"),
+    noche_desde: str = Form("22:00"),
+    noche_hasta: str = Form("06:00"),
     aviso_home: str = Form(""),
     csrf: str = Form(""),
     admin: User = Depends(require_admin),
@@ -338,6 +344,7 @@ def guardar_config(
             "precio_litro": Decimal(precio_litro.replace(",", ".")),
             "umbral_prepago": Decimal(umbral_prepago.replace(",", ".")),
             "umbral_reparto_km": Decimal(umbral_reparto_km.replace(",", ".")),
+            "recargo_noche_pct": Decimal(recargo_noche_pct.replace(",", ".")),
         }
     except InvalidOperation:
         flash(request, "Revisa los valores numéricos.", "error")
@@ -348,6 +355,12 @@ def guardar_config(
             flash(request, "Los valores no pueden ser negativos.", "error")
             return redirect("/admin/config")
         set_setting(session, k, str(v))
+    import re as _re
+    for clave, valor in (("noche_desde", noche_desde), ("noche_hasta", noche_hasta)):
+        if not _re.fullmatch(r"([01]\d|2[0-3]):[0-5]\d", valor.strip()):
+            flash(request, "Las horas deben tener el formato HH:MM.", "error")
+            return redirect("/admin/config")
+        set_setting(session, clave, valor.strip())
     set_setting(session, "aviso_home", aviso_home.strip()[:200])
     _log(session, admin, "config", str(valores))
     session.commit()
@@ -399,14 +412,17 @@ def exportar(
     w.writerow(
         ["id", "fecha", "usuario", "origen", "destino", "recorrido", "paradas",
          "km_ida", "km_vuelta", "ida_vuelta", "km_total", "pasajeros", "reparto",
-         "coste_total", "coste_usuario", "estado"]
+         "hora", "nocturno", "recargo_pct", "recargo", "coste_total",
+         "coste_usuario", "estado"]
     )
     for t in viajes:
         w.writerow(
             [t.id, t.fecha_viaje, usuarios.get(t.user_id, "?"), t.origen, t.destino,
              t.ruta, max(0, len(t.puntos or []) - 2),
              t.km_ida, t.km_vuelta, int(t.ida_vuelta), t.km_total, t.pasajeros,
-             int(t.reparto_aplicado), t.coste_total, t.coste_usuario, t.estado.value]
+             int(t.reparto_aplicado), t.hora_salida or "", int(t.nocturno),
+             t.recargo_pct, t.recargo_importe, t.coste_total,
+             t.coste_usuario, t.estado.value]
         )
     buf.seek(0)
     nombre = f"viajes-{datetime.now():%Y%m%d}.csv"

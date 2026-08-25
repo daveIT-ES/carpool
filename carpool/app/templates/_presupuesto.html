@@ -33,7 +33,11 @@
     <div class="line"><span class="k">Coste por km</span><span class="dots"></span>
       <span class="v">{{ '%.4f'|format(coste.coste_km) }} €</span></div>
     <div class="line"><span class="k">Combustible + desgaste</span><span class="dots"></span>
-      <span class="v">{{ '%.2f'|format(coste.coste_total) }} €</span></div>
+      <span class="v">{{ '%.2f'|format(coste.coste_recorrido) }} €</span></div>
+    {% if coste.nocturno %}
+    <div class="line"><span class="k">Recargo nocturno ({{ '%.0f'|format(coste.recargo_pct) }} %)</span>
+      <span class="dots"></span><span class="v">+ {{ '%.2f'|format(coste.recargo_importe) }} €</span></div>
+    {% endif %}
     {% if coste.reparto_aplicado %}
     <div class="line"><span class="k">Repartido entre {{ pasajeros }}</span><span class="dots"></span>
       <span class="v">÷ {{ pasajeros }}</span></div>

@@ -23,6 +23,24 @@
         <input id="umbral_reparto_km" name="umbral_reparto_km" type="text" inputmode="decimal" value="{{ umbral_reparto_km }}" required>
       </div>
     </div>
+    <p class="step" style="margin-top:1.2rem"><b>Noche</b> recargo por horario nocturno</p>
+    <div class="row">
+      <div>
+        <label for="recargo_noche_pct">Recargo nocturno (%)</label>
+        <input id="recargo_noche_pct" name="recargo_noche_pct" type="text" inputmode="decimal" value="{{ recargo_noche_pct }}" required>
+      </div>
+      <div>
+        <label for="noche_desde">Desde</label>
+        <input id="noche_desde" name="noche_desde" type="time" value="{{ noche_desde }}" required>
+      </div>
+      <div>
+        <label for="noche_hasta">Hasta</label>
+        <input id="noche_hasta" name="noche_hasta" type="time" value="{{ noche_hasta }}" required>
+      </div>
+    </div>
+    <p class="hint">A 0 % queda desactivado. El recargo se aplica sobre el coste del
+      recorrido y se reparte igual que el resto si toca reparto.</p>
+
     <label for="aviso_home">Aviso para los usuarios (opcional)</label>
     <input id="aviso_home" name="aviso_home" type="text" maxlength="200" value="{{ aviso_home }}">
     <button class="wide-btn" type="submit">Guardar parámetros</button>

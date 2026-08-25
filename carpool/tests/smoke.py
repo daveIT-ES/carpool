@@ -101,6 +101,30 @@ check("la vuelta no decide el reparto", c.reparto_aplicado is True)
 c = calcular(km_ida=Decimal("30"), km_vuelta=Decimal("30"), pasajeros=3, **P)
 check("ida corta no reparte aunque el total sea largo", c.reparto_aplicado is False)
 
+# --- recargo nocturno
+from app.costing import es_nocturno  # noqa: E402
+check("23:30 es nocturno en 22-06", es_nocturno("23:30", "22:00", "06:00") is True)
+check("03:00 es nocturno en 22-06", es_nocturno("03:00", "22:00", "06:00") is True)
+check("06:00 ya no es nocturno", es_nocturno("06:00", "22:00", "06:00") is False)
+check("14:00 no es nocturno", es_nocturno("14:00", "22:00", "06:00") is False)
+check("sin hora no hay recargo", es_nocturno(None, "22:00", "06:00") is False)
+check("hora invalida no rompe", es_nocturno("no-es-hora", "22:00", "06:00") is False)
+
+c = calcular(km_ida=Decimal("20"), pasajeros=1, hora_salida="23:30",
+             recargo_noche_pct=Decimal("30"), **P)
+base_dia = calcular(km_ida=Decimal("20"), pasajeros=1, **P)
+check("de noche se cobra mas", c.coste_total > base_dia.coste_total,
+      f"{base_dia.coste_total} -> {c.coste_total}")
+check("el recargo es el 30% del recorrido",
+      c.recargo_importe == (c.coste_recorrido * Decimal("30") / 100).quantize(Decimal("0.01")))
+c = calcular(km_ida=Decimal("20"), pasajeros=1, hora_salida="23:30",
+             recargo_noche_pct=Decimal("0"), **P)
+check("con recargo a 0 no se aplica nada", c.nocturno is False and c.recargo_importe == 0)
+c = calcular(km_ida=Decimal("60"), pasajeros=2, hora_salida="23:30",
+             recargo_noche_pct=Decimal("50"), **P)
+check("el recargo se reparte entre pasajeros",
+      c.coste_usuario == (c.coste_total / 2).quantize(Decimal("0.01")))
+
 P10 = dict(P, desgaste_eur_km=Decimal("0"), consumo_l100=Decimal("10"), precio_litro=Decimal("2"))
 c = calcular(km_ida=Decimal("50"), pasajeros=1, **P10)
 check("10,00 € NO exige prepago", c.estado == TripStatus.PENDIENTE_PAGO, f"→ {c.coste_usuario}")
@@ -262,6 +286,14 @@ r = anon.get("/api/geo/buscar?q=tarragona", follow_redirects=False)
 check("la busqueda de direcciones requiere sesion", r.status_code == 303)
 r = u.get("/api/geo/inverso?lat=999&lon=999")
 check("geocodificacion inversa valida rango", r.json()["nombre"] == "")
+r = u.get("/api/geo/buscar?q=tarragona")
+d = r.json()
+check("la busqueda informa del fallo en vez de decir 'sin resultados'",
+      "resultados" in d and "error" in d)
+r = u.get("/api/geo/estado", follow_redirects=False)
+check("el diagnostico es solo para admin", r.status_code == 403)
+r = cli.get("/api/geo/estado")
+check("el admin ve el estado de los proveedores", "orden_configurado" in r.json())
 
 servidor.shutdown()
 print()
