@@ -31,8 +31,12 @@ def valida_coordenada(lat: float, lon: float) -> bool:
     return -90 <= lat <= 90 and -180 <= lon <= 180
 
 
-async def ruta(puntos: list[Punto]) -> tuple[Decimal, int]:
-    """Kilómetros y minutos del recorrido que pasa por todos los puntos, en orden."""
+async def ruta(puntos: list[Punto]) -> tuple[Decimal, int, list]:
+    """Kilómetros, minutos y trazado real del recorrido por carretera.
+
+    El trazado se devuelve como lista de pares [lat, lon] para dibujarlo en el
+    mapa. Se pide simplificado para no mover megas por cada consulta.
+    """
     if len(puntos) < 2:
         raise RoutingError("Hace falta al menos un origen y un destino.")
     if len(puntos) > MAX_PARADAS + 2:
@@ -46,7 +50,10 @@ async def ruta(puntos: list[Punto]) -> tuple[Decimal, int]:
 
     try:
         async with httpx.AsyncClient(timeout=15.0) as client:
-            resp = await client.get(url, params={"overview": "false"})
+            resp = await client.get(
+                url,
+                params={"overview": "simplified", "geometries": "geojson"},
+            )
             resp.raise_for_status()
             data = resp.json()
     except httpx.HTTPError as exc:
@@ -62,4 +69,9 @@ async def ruta(puntos: list[Punto]) -> tuple[Decimal, int]:
     km = Decimal(str(r["distance"])) / Decimal(1000)
     if km > MAX_KM_RUTA:
         raise RoutingError("El recorrido es demasiado largo para esta aplicación.")
-    return km, int(round(r["duration"] / 60))
+
+    # OSRM devuelve [lon, lat]; Leaflet espera [lat, lon]
+    coords = (r.get("geometry") or {}).get("coordinates") or []
+    trazado = [[c[1], c[0]] for c in coords if isinstance(c, (list, tuple)) and len(c) == 2]
+
+    return km, int(round(r["duration"] / 60)), trazado

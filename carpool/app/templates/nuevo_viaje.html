@@ -143,26 +143,32 @@
 
     marcadores.forEach(m => mapa.removeLayer(m));
     marcadores = [];
-    if (linea) { mapa.removeLayer(linea); linea = null; }
     lista.forEach((p, i) => {
       const etiqueta = i === 0 ? "Salida" : (i === lista.length - 1 ? "Destino" : "Parada " + i);
       marcadores.push(L.marker([p.lat, p.lon]).addTo(mapa).bindTooltip(etiqueta));
     });
-    if (lista.length > 1) {
-      linea = L.polyline(lista.map(p => [p.lat, p.lon]), { weight: 3, dashArray: "6 6" }).addTo(mapa);
-      mapa.fitBounds(linea.getBounds(), { padding: [40, 40] });
-    } else if (lista.length === 1) {
-      mapa.setView([lista[0].lat, lista[0].lon], 14);
-    }
+    if (lista.length === 1) mapa.setView([lista[0].lat, lista[0].lon], 14);
+    // la linea la dibuja pintarRuta() con el trazado real que devuelve OSRM
 
     if (reiniciarVuelta) idaVuelta.value = "";
     clearTimeout(temporizador);
     temporizador = setTimeout(estimar, 200);
   }
 
+  function pintarRuta(trazado) {
+    if (linea) { mapa.removeLayer(linea); linea = null; }
+    if (!trazado || trazado.length < 2) return;
+    linea = L.polyline(trazado, { weight: 5, opacity: 0.8, color: "#1f5e4b" }).addTo(mapa);
+    mapa.fitBounds(linea.getBounds(), { padding: [30, 30] });
+  }
+
   async function estimar() {
     const lista = JSON.parse(campoJson.value || "[]");
-    if (lista.length < 2) { caja.innerHTML = ""; confirmar.disabled = true; return; }
+    if (lista.length < 2) {
+      caja.innerHTML = ""; confirmar.disabled = true;
+      if (linea) { mapa.removeLayer(linea); linea = null; }
+      return;
+    }
     caja.innerHTML = '<div class="card"><p class="empty">Calculando el recorrido…</p></div>';
     confirmar.disabled = true;
     const datos = new FormData();
@@ -172,6 +178,10 @@
     try {
       const r = await fetch("/viajes/calcular", { method: "POST", body: datos });
       caja.innerHTML = await r.text();
+      const t = caja.querySelector("[data-trazado]");
+      if (t) {
+        try { pintarRuta(JSON.parse(t.dataset.trazado)); } catch (e) { /* sin trazado */ }
+      }
     } catch (e) {
       caja.innerHTML = '<div class="card"><p class="empty">No se ha podido calcular. Reinténtalo.</p></div>';
     }

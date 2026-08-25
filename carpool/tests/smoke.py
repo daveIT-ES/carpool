@@ -40,7 +40,11 @@ class MockOSRM(BaseHTTPRequestHandler):
             {
                 "code": "Ok",
                 "routes": [
-                    {"distance": KM_POR_TRAMO["valor"] * 1000 * tramos, "duration": 600 * tramos}
+                    {
+                        "distance": KM_POR_TRAMO["valor"] * 1000 * tramos,
+                        "duration": 600 * tramos,
+                        "geometry": {"coordinates": [[1.0, 41.0], [1.4, 41.3]]},
+                    }
                 ],
             }
         ).encode()

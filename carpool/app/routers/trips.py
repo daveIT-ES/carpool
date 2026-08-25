@@ -93,12 +93,13 @@ async def _presupuesto(
     if vehiculo is None:
         raise RoutingError("No hay ningún vehículo configurado. Avisa al conductor.")
 
-    km_ida, min_ida = await ruta(puntos)
+    km_ida, min_ida, trazado = await ruta(puntos)
 
     km_vuelta, min_vuelta = Decimal("0"), 0
     if ida_vuelta:
         # La vuelta va directa del destino al origen, sin repetir las paradas.
-        km_vuelta, min_vuelta = await ruta([puntos[-1], puntos[0]])
+        km_vuelta, min_vuelta, trazado_vuelta = await ruta([puntos[-1], puntos[0]])
+        trazado = trazado + trazado_vuelta
 
     coste = calcular(
         km_ida=km_ida,
@@ -106,7 +107,7 @@ async def _presupuesto(
         pasajeros=pasajeros,
         **_parametros(session, vehiculo),
     )
-    return vehiculo, coste, min_ida + min_vuelta
+    return vehiculo, coste, min_ida + min_vuelta, trazado
 
 
 @router.get("/")
@@ -185,7 +186,7 @@ async def calcular_precio(
     quiere_vuelta = ida_vuelta == "true"
     try:
         puntos = _puntos_desde_json(puntos_json)
-        vehiculo, coste, minutos = await _presupuesto(
+        vehiculo, coste, minutos, trazado = await _presupuesto(
             session, puntos, quiere_vuelta, pasajeros
         )
     except RoutingError as exc:
@@ -197,6 +198,7 @@ async def calcular_precio(
         puntos=puntos,
         coste=coste,
         minutos=minutos,
+        trazado=trazado,
         pasajeros=pasajeros,
         ida_vuelta=quiere_vuelta,
         decidido=ida_vuelta in ("true", "false"),
@@ -235,7 +237,7 @@ async def crear_viaje(
 
     try:
         puntos = _puntos_desde_json(puntos_json)
-        vehiculo, coste, minutos = await _presupuesto(
+        vehiculo, coste, minutos, _trazado = await _presupuesto(
             session, puntos, ida_vuelta == "true", pasajeros
         )
     except RoutingError as exc:

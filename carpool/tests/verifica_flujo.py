@@ -14,7 +14,8 @@ class M(BaseHTTPRequestHandler):
     def do_GET(self):
         c = unquote(self.path.split("?")[0]).rsplit("/",1)[-1]
         t = max(1, len(c.split(";"))-1)
-        b = json.dumps({"code":"Ok","routes":[{"distance":12000*t,"duration":600*t}]}).encode()
+        b = json.dumps({"code":"Ok","routes":[{"distance":12000*t,"duration":600*t,
+             "geometry":{"coordinates":[[1.0,41.0],[1.2,41.2]]}}]}).encode()
         self.send_response(200); self.send_header("Content-Type","application/json")
         self.send_header("Content-Length",str(len(b))); self.end_headers(); self.wfile.write(b)
     def log_message(self,*a): pass

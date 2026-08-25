@@ -1,7 +1,8 @@
 {% if error %}
   <div class="card"><p class="empty">{{ error }}</p></div>
 {% else %}
-<div class="ticket" {% if decidido %}data-final="1"{% endif %} style="margin-bottom:1rem">
+<div class="ticket" {% if decidido %}data-final="1"{% endif %}
+     data-trazado="{{ (trazado or []) | tojson | e }}" style="margin-bottom:1rem">
   <div class="ticket-head">
     <span>Recorrido</span>
     <span>{{ minutos }} min al volante</span>
