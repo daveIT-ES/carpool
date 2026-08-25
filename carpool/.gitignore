@@ -1,0 +1,8 @@
+.env
+data/
+osrm-data/*
+!osrm-data/.gitkeep
+__pycache__/
+*.pyc
+*.db
+.venv/
