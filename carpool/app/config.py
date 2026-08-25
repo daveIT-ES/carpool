@@ -39,6 +39,10 @@ class Settings(BaseSettings):
     # Cookie segura: ponlo a False solo si sirves por HTTP plano en local
     cookie_secure: bool = True
 
+    # Avisos por Telegram (opcional). Vacío = desactivado.
+    telegram_token: str = ""
+    telegram_chat_id: str = ""
+
     # Retención de viajes cancelados/pagados en meses (0 = sin purga)
     retencion_meses: int = 24
 
