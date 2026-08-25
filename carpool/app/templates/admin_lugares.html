@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+{% set seccion = 'lugares' %}
+{% block main_class %}wide{% endblock %}
+{% block title %}Lugares · {{ app_name }}{% endblock %}
+{% block content %}
+<h1>Puntos de recogida y destino</h1>
+{% include "_adminnav.html" %}
+<p class="lead">Los usuarios eligen origen y destino de esta lista. Añade solo puntos genéricos
+(estación, polígono, plaza del pueblo), no domicilios exactos.</p>
+
+<div class="card">
+  <form method="post" action="/admin/lugares">
+    <input type="hidden" name="csrf" value="{{ csrf_token }}">
+    <div class="row">
+      <div><label for="nombre">Nombre</label><input id="nombre" name="nombre" type="text" required></div>
+      <div><label for="lat">Latitud</label><input id="lat" name="lat" type="text" inputmode="decimal" placeholder="41.1189" required></div>
+      <div><label for="lon">Longitud</label><input id="lon" name="lon" type="text" inputmode="decimal" placeholder="1.2445" required></div>
+    </div>
+    <p class="hint">Saca las coordenadas de cualquier mapa: pulsa sobre el punto y copia el par lat, lon.</p>
+    <button type="submit">Añadir punto</button>
+  </form>
+</div>
+
+<div class="card scroll" style="padding:0.3rem 0.6rem">
+<table>
+  <thead><tr><th>Nombre</th><th class="num">Latitud</th><th class="num">Longitud</th><th>Estado</th><th></th></tr></thead>
+  <tbody>
+  {% for l in lugares %}
+    <tr>
+      <td>{{ l.nombre }}</td>
+      <td class="num">{{ '%.5f'|format(l.lat) }}</td>
+      <td class="num">{{ '%.5f'|format(l.lon) }}</td>
+      <td>{{ 'Visible' if l.activo else 'Oculto' }}</td>
+      <td>
+        <form method="post" action="/admin/lugares/{{ l.id }}/estado">
+          <input type="hidden" name="csrf" value="{{ csrf_token }}">
+          <button class="ghost small" type="submit">{{ 'Ocultar' if l.activo else 'Mostrar' }}</button>
+        </form>
+      </td>
+    </tr>
+  {% else %}
+    <tr><td colspan="5" class="empty">No hay ningún punto todavía. Añade al menos dos.</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+{% endblock %}

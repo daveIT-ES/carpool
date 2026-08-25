@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+{% block title %}Mis viajes · {{ app_name }}{% endblock %}
+{% block content %}
+
+<div class="ticket" style="margin-bottom:1.4rem">
+  <div class="ticket-head">
+    <span>Saldo de {{ user.alias }}</span>
+    <span>{{ n_viajes }} viaje{{ '' if n_viajes == 1 else 's' }}</span>
+  </div>
+  <div class="ticket-body">
+    <div class="tear"></div>
+    {% if deuda > 0 %}
+      <div class="figure debt">{{ '%.2f'|format(deuda) }}<small>€ pendientes</small></div>
+      <p class="hint">Mientras quede algo pendiente no puedes registrar un viaje nuevo.
+        Paga al conductor y pídele que lo marque como cobrado.</p>
+    {% else %}
+      <div class="figure clear">0,00<small>€ · al día</small></div>
+      <p class="hint">No debes nada. Puedes registrar tu próximo viaje.</p>
+    {% endif %}
+
+    {% if deuda > 0 %}
+      <button class="wide-btn" disabled>Registrar viaje</button>
+    {% else %}
+      <a class="btn wide-btn" href="/viajes/nuevo">Registrar viaje</a>
+    {% endif %}
+  </div>
+</div>
+
+<h2>Historial</h2>
+{% if viajes %}
+<div class="card scroll" style="padding:0.3rem 0.6rem">
+  <table>
+    <thead>
+      <tr>
+        <th>Fecha</th><th>Trayecto</th><th class="num">Km</th>
+        <th class="num">Importe</th><th>Estado</th>
+      </tr>
+    </thead>
+    <tbody>
+    {% for v in viajes %}
+      <tr>
+        <td><a href="/viajes/{{ v.id }}">{{ v.fecha_viaje.strftime('%d/%m/%y') }}</a></td>
+        <td>{{ v.ruta or (v.origen ~ ' → ' ~ v.destino) }}{% if v.ida_vuelta %} <span class="hint">(i/v)</span>{% endif %}</td>
+        <td class="num">{{ '%.1f'|format(v.km_total) }}</td>
+        <td class="num">{{ '%.2f'|format(v.coste_usuario) }} €</td>
+        <td><span class="stamp flat {{ v.estado.value|lower }}">{{ ESTADO_LABEL[v.estado.value] }}</span></td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div>
+<p class="hint">Total cobrado hasta hoy: {{ '%.2f'|format(pagado) }} €.</p>
+{% else %}
+<div class="card"><p class="empty">Aún no has registrado ningún viaje.</p></div>
+{% endif %}
+
+{% endblock %}

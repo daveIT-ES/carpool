@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#e7e8e1">
+<title>{% block title %}{{ app_name }}{% endblock %}</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/static/app.css">
+{% block head_extra %}{% endblock %}
+</head>
+<body>
+
+<header class="topbar">
+  <div class="topbar-inner">
+    <a class="brand" href="/">{{ app_name }} <small>{{ app_subtitle }}</small></a>
+    {% if user %}
+    <nav class="nav">
+      <span class="who">{{ user.alias }}</span>
+      <a href="/">Mis viajes</a>
+      {% if user.role == 'admin' %}
+        <a href="/admin">Admin</a>
+      {% endif %}
+      <form method="post" action="/logout" style="display:inline">
+        <input type="hidden" name="csrf" value="{{ csrf_token }}">
+        <button class="ghost small" type="submit">Salir</button>
+      </form>
+    </nav>
+    {% endif %}
+  </div>
+</header>
+
+<main class="{% block main_class %}{% endblock %}">
+  {% for f in flashes %}
+    <div class="flash {{ f.n }}">{{ f.m }}</div>
+  {% endfor %}
+  {% block content %}{% endblock %}
+</main>
+
+<div class="footer">{{ app_name }} · uso privado · los importes reparten gastos reales, no son un servicio de transporte</div>
+</body>
+</html>

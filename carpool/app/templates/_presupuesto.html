@@ -1,0 +1,73 @@
+{% if error %}
+  <div class="card"><p class="empty">{{ error }}</p></div>
+{% else %}
+<div class="ticket" {% if decidido %}data-final="1"{% endif %} style="margin-bottom:1rem">
+  <div class="ticket-head">
+    <span>Recorrido</span>
+    <span>{{ minutos }} min al volante</span>
+  </div>
+  <div class="ticket-body">
+    <div class="tear"></div>
+
+    <ul class="chain">
+      {% for p in puntos %}
+        <li class="{% if loop.first %}inicio{% elif loop.last %}fin{% else %}parada{% endif %}">
+          {{ p.nombre }}
+          <small>{% if loop.first %}salida{% elif loop.last %}destino{% else %}parada {{ loop.index - 1 }}{% endif %}</small>
+        </li>
+      {% endfor %}
+      {% if ida_vuelta and decidido %}
+        <li class="fin">{{ puntos[0].nombre }}<small>vuelta directa</small></li>
+      {% endif %}
+    </ul>
+
+    <div class="line"><span class="k">Ida{% if puntos|length > 2 %} con {{ puntos|length - 2 }} parada{{ '' if puntos|length == 3 else 's' }}{% endif %}</span>
+      <span class="dots"></span><span class="v">{{ '%.1f'|format(coste.km_ida) }} km</span></div>
+    {% if decidido and ida_vuelta %}
+    <div class="line"><span class="k">Vuelta directa</span><span class="dots"></span>
+      <span class="v">{{ '%.1f'|format(coste.km_vuelta) }} km</span></div>
+    <div class="line"><span class="k">Recorrido total</span><span class="dots"></span>
+      <span class="v">{{ '%.1f'|format(coste.km_total) }} km</span></div>
+    {% endif %}
+    <div class="line"><span class="k">Coste por km</span><span class="dots"></span>
+      <span class="v">{{ '%.4f'|format(coste.coste_km) }} €</span></div>
+    <div class="line"><span class="k">Combustible + desgaste</span><span class="dots"></span>
+      <span class="v">{{ '%.2f'|format(coste.coste_total) }} €</span></div>
+    {% if coste.reparto_aplicado %}
+    <div class="line"><span class="k">Repartido entre {{ pasajeros }}</span><span class="dots"></span>
+      <span class="v">÷ {{ pasajeros }}</span></div>
+    {% endif %}
+
+    {% if not decidido %}
+      <div class="line total"><span class="k">Solo la ida costaría</span><span class="dots"></span>
+        <span class="v">{{ '%.2f'|format(coste.coste_usuario) }} €</span></div>
+
+      <p class="step" style="margin:1.1rem 0 0"><b>4</b> ¿Necesitas la vuelta?</p>
+      <div class="choice">
+        <button type="button" class="ghost" data-vuelta="false">Solo ida</button>
+        <button type="button" data-vuelta="true">Ida y vuelta</button>
+      </div>
+      <p class="hint">La vuelta se calcula directa desde el destino hasta el punto de salida, sin repetir las paradas.</p>
+    {% else %}
+      <div class="line total"><span class="k">Te toca pagar</span><span class="dots"></span>
+        <span class="v">{{ '%.2f'|format(coste.coste_usuario) }} €</span></div>
+
+      <div style="margin-top:0.8rem">
+        {% if coste.requiere_prepago %}
+          <span class="stamp pendiente_prepago">Pago por adelantado</span>
+          <p class="hint">Supera el límite de pago aplazado: el viaje no queda confirmado hasta que el conductor registre el cobro.</p>
+        {% else %}
+          <span class="stamp pendiente_pago">Se paga después</span>
+          <p class="hint">Puedes viajar ya y liquidarlo luego. Hasta que lo pagues no podrás registrar otro viaje.</p>
+        {% endif %}
+        <p class="hint">
+          {{ 'Ida y vuelta' if ida_vuelta else 'Solo ida' }} ·
+          <button type="button" class="ghost small" data-vuelta="{{ 'false' if ida_vuelta else 'true' }}">
+            Cambiar a {{ 'solo ida' if ida_vuelta else 'ida y vuelta' }}
+          </button>
+        </p>
+      </div>
+    {% endif %}
+  </div>
+</div>
+{% endif %}

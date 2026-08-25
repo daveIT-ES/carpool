@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+{% set seccion = 'usuarios' %}
+{% block main_class %}wide{% endblock %}
+{% block title %}Usuarios · {{ app_name }}{% endblock %}
+{% block content %}
+<h1>Usuarios</h1>
+{% include "_adminnav.html" %}
+
+<h2>Invitaciones sin usar</h2>
+<div class="card">
+  {% if invitaciones %}
+    <p>{% for i in invitaciones %}<span class="code">{{ i.code }}</span> {% endfor %}</p>
+    <p class="hint">Comparte el código con quien vaya a registrarse. Cada uno sirve una sola vez.</p>
+  {% else %}
+    <p class="empty">No queda ningún código libre.</p>
+  {% endif %}
+  <form method="post" action="/admin/invitaciones">
+    <input type="hidden" name="csrf" value="{{ csrf_token }}">
+    <button class="small" type="submit">Generar código</button>
+  </form>
+</div>
+
+<h2>Cuentas</h2>
+<div class="card scroll" style="padding:0.3rem 0.6rem">
+<table>
+  <thead><tr><th>Alias</th><th>Correo</th><th>Rol</th><th>Estado</th><th>Alta</th><th>Acciones</th></tr></thead>
+  <tbody>
+  {% for u in usuarios %}
+    <tr>
+      <td>{{ u.alias }}</td>
+      <td class="hint">{{ u.email }}</td>
+      <td>{{ 'Administrador' if u.role == 'admin' else 'Usuario' }}</td>
+      <td>{{ 'Activa' if u.is_active else 'Desactivada' }}</td>
+      <td class="hint">{{ u.created_at.strftime('%d/%m/%y') }}</td>
+      <td>
+        <div class="inline-form">
+          <form method="post" action="/admin/usuarios/{{ u.id }}/estado">
+            <input type="hidden" name="csrf" value="{{ csrf_token }}">
+            <button class="ghost small" type="submit">{{ 'Desactivar' if u.is_active else 'Activar' }}</button>
+          </form>
+          <form method="post" action="/admin/usuarios/{{ u.id }}/password" class="inline-form">
+            <input type="hidden" name="csrf" value="{{ csrf_token }}">
+            <input name="password" type="password" minlength="8" placeholder="Nueva contraseña" aria-label="Nueva contraseña">
+            <button class="ghost small" type="submit">Cambiar</button>
+          </form>
+        </div>
+      </td>
+    </tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+
+<div class="notice">Los correos y el historial de trayectos son datos personales. Trátalos con la misma
+discreción que cualquier otro dato de tus contactos y no los compartas fuera de esta aplicación.</div>
+{% endblock %}

@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+{% set seccion = 'config' %}
+{% block main_class %}wide{% endblock %}
+{% block title %}Parámetros · {{ app_name }}{% endblock %}
+{% block content %}
+<h1>Parámetros de cálculo</h1>
+{% include "_adminnav.html" %}
+
+<div class="card">
+  <form method="post" action="/admin/config">
+    <input type="hidden" name="csrf" value="{{ csrf_token }}">
+    <div class="row">
+      <div>
+        <label for="precio_litro">Precio del combustible (€/litro)</label>
+        <input id="precio_litro" name="precio_litro" type="text" inputmode="decimal" value="{{ precio_litro }}" required>
+      </div>
+      <div>
+        <label for="umbral_prepago">Límite de pago aplazado (€)</label>
+        <input id="umbral_prepago" name="umbral_prepago" type="text" inputmode="decimal" value="{{ umbral_prepago }}" required>
+      </div>
+      <div>
+        <label for="umbral_reparto_km">Reparto a partir de (km de ida)</label>
+        <input id="umbral_reparto_km" name="umbral_reparto_km" type="text" inputmode="decimal" value="{{ umbral_reparto_km }}" required>
+      </div>
+    </div>
+    <label for="aviso_home">Aviso para los usuarios (opcional)</label>
+    <input id="aviso_home" name="aviso_home" type="text" maxlength="200" value="{{ aviso_home }}">
+    <button class="wide-btn" type="submit">Guardar parámetros</button>
+  </form>
+  <div class="notice">Justo en el límite no se exige prepago: con 10,00 € se paga después; con 10,01 € por adelantado.
+    Cambiar estos valores no recalcula los viajes ya registrados.</div>
+</div>
+
+<h2>Vehículos</h2>
+{% for v in vehiculos %}
+<div class="card">
+  <form method="post" action="/admin/vehiculos/{{ v.id }}">
+    <input type="hidden" name="csrf" value="{{ csrf_token }}">
+    <div class="row">
+      <div><label for="n{{ v.id }}">Nombre</label>
+        <input id="n{{ v.id }}" name="nombre" type="text" value="{{ v.nombre }}" required></div>
+      <div><label for="c{{ v.id }}">Consumo (L/100 km)</label>
+        <input id="c{{ v.id }}" name="consumo_l100" type="text" inputmode="decimal" value="{{ '%.2f'|format(v.consumo_l100) }}" required></div>
+      <div><label for="d{{ v.id }}">Desgaste (€/km)</label>
+        <input id="d{{ v.id }}" name="desgaste_eur_km" type="text" inputmode="decimal" value="{{ '%.4f'|format(v.desgaste_eur_km) }}" required></div>
+    </div>
+    <p class="hint">El desgaste cubre neumáticos, aceite, revisiones y depreciación. Entre 0,05 y 0,12 €/km es lo habitual en un turismo.</p>
+    <button type="submit">Guardar vehículo</button>
+  </form>
+</div>
+{% endfor %}
+{% endblock %}

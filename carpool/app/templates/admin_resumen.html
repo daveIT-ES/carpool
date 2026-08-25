@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+{% set seccion = 'resumen' %}
+{% block main_class %}wide{% endblock %}
+{% block title %}Administración · {{ app_name }}{% endblock %}
+{% block content %}
+<h1>Administración</h1>
+{% include "_adminnav.html" %}
+
+<div class="grid">
+  <div class="metric"><div class="k">Deuda viva</div><div class="v">{{ '%.2f'|format(deuda_total) }} €</div></div>
+  <div class="metric"><div class="k">Cobrado histórico</div><div class="v">{{ '%.2f'|format(cobrado_total) }} €</div></div>
+  <div class="metric"><div class="k">Usuarios</div><div class="v">{{ saldos|length }}</div></div>
+</div>
+
+<h2>Saldo por usuario</h2>
+<div class="card scroll" style="padding:0.3rem 0.6rem">
+<table>
+  <thead><tr><th>Usuario</th><th class="num">Viajes</th><th class="num">Pendientes</th>
+    <th class="num">Deuda</th><th class="num">Cobrado</th><th></th></tr></thead>
+  <tbody>
+  {% for s in saldos %}
+    <tr>
+      <td>{{ s.user.alias }}{% if not s.user.is_active %} <span class="hint">(inactivo)</span>{% endif %}</td>
+      <td class="num">{{ s.viajes }}</td>
+      <td class="num">{{ s.pendientes }}</td>
+      <td class="num">{% if s.deuda > 0 %}<strong style="color:var(--stamp)">{{ '%.2f'|format(s.deuda) }} €</strong>{% else %}0,00 €{% endif %}</td>
+      <td class="num">{{ '%.2f'|format(s.cobrado) }} €</td>
+      <td><a class="btn ghost small" href="/admin/viajes?user_id={{ s.user.id }}">Ver</a></td>
+    </tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+
+<h2>Últimos viajes</h2>
+<div class="card scroll" style="padding:0.3rem 0.6rem">
+<table>
+  <thead><tr><th>#</th><th>Fecha</th><th>Trayecto</th><th class="num">Importe</th><th>Estado</th></tr></thead>
+  <tbody>
+  {% for v in ultimos %}
+    <tr>
+      <td><a href="/viajes/{{ v.id }}">{{ v.id }}</a></td>
+      <td>{{ v.fecha_viaje.strftime('%d/%m/%y') }}</td>
+      <td>{{ v.ruta or (v.origen ~ ' → ' ~ v.destino) }}</td>
+      <td class="num">{{ '%.2f'|format(v.coste_usuario) }} €</td>
+      <td><span class="stamp flat {{ v.estado.value|lower }}">{{ ESTADO_LABEL[v.estado.value] }}</span></td>
+    </tr>
+  {% else %}
+    <tr><td colspan="5" class="empty">Todavía no hay viajes registrados.</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+{% endblock %}

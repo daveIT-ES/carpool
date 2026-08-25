@@ -1,0 +1,70 @@
+{% extends "base.html" %}
+{% block title %}Viaje #{{ viaje.id }} · {{ app_name }}{% endblock %}
+{% block content %}
+
+<div class="ticket">
+  <div class="ticket-head">
+    <span>Viaje #{{ viaje.id }} · {{ dueno.alias }}</span>
+    <span>{{ viaje.fecha_viaje.strftime('%d/%m/%Y') }}</span>
+  </div>
+  <div class="ticket-body">
+    <div class="tear"></div>
+
+    <ul class="chain">
+      {% for p in viaje.puntos %}
+        <li class="{% if loop.first %}inicio{% elif loop.last %}fin{% else %}parada{% endif %}">
+          {{ p.nombre }}
+          <small>{% if loop.first %}salida{% elif loop.last %}destino{% else %}parada {{ loop.index - 1 }}{% endif %}</small>
+        </li>
+      {% endfor %}
+      {% if viaje.ida_vuelta %}
+        <li class="fin">{{ viaje.origen }}<small>vuelta directa</small></li>
+      {% endif %}
+    </ul>
+
+    <div class="line"><span class="k">Ida</span><span class="dots"></span>
+      <span class="v">{{ '%.1f'|format(viaje.km_ida) }} km</span></div>
+    {% if viaje.ida_vuelta %}
+    <div class="line"><span class="k">Vuelta</span><span class="dots"></span>
+      <span class="v">{{ '%.1f'|format(viaje.km_vuelta) }} km</span></div>
+    {% endif %}
+    <div class="line"><span class="k">Recorrido total</span><span class="dots"></span>
+      <span class="v">{{ '%.1f'|format(viaje.km_total) }} km</span></div>
+    {% if viaje.duracion_min %}
+    <div class="line"><span class="k">Duración estimada</span><span class="dots"></span>
+      <span class="v">{{ viaje.duracion_min }} min</span></div>
+    {% endif %}
+    <div class="line"><span class="k">Precio del litro</span><span class="dots"></span>
+      <span class="v">{{ '%.3f'|format(viaje.precio_litro) }} €</span></div>
+    <div class="line"><span class="k">Consumo</span><span class="dots"></span>
+      <span class="v">{{ '%.2f'|format(viaje.consumo_l100) }} L/100</span></div>
+    <div class="line"><span class="k">Desgaste</span><span class="dots"></span>
+      <span class="v">{{ '%.4f'|format(viaje.desgaste_eur_km) }} €/km</span></div>
+    <div class="line"><span class="k">Coste del trayecto</span><span class="dots"></span>
+      <span class="v">{{ '%.2f'|format(viaje.coste_total) }} €</span></div>
+    <div class="line"><span class="k">Pasajeros</span><span class="dots"></span>
+      <span class="v">{{ viaje.pasajeros }}{{ ' · repartido' if viaje.reparto_aplicado else ' · sin reparto' }}</span></div>
+
+    <div class="line total"><span class="k">Importe</span><span class="dots"></span>
+      <span class="v">{{ '%.2f'|format(viaje.coste_usuario) }} €</span></div>
+
+    <div style="margin-top:0.9rem">
+      <span class="stamp {{ viaje.estado.value|lower }}">{{ ESTADO_LABEL[viaje.estado.value] }}</span>
+    </div>
+
+    {% if viaje.notas %}<p class="hint" style="margin-top:0.8rem">{{ viaje.notas }}</p>{% endif %}
+  </div>
+</div>
+
+{% if pagos %}
+<h2>Cobros</h2>
+<div class="card">
+  {% for p in pagos %}
+  <div class="line"><span class="k">{{ p.fecha.strftime('%d/%m/%Y %H:%M') }} · {{ p.metodo }}</span>
+    <span class="dots"></span><span class="v">{{ '%.2f'|format(p.importe) }} €</span></div>
+  {% endfor %}
+</div>
+{% endif %}
+
+<p style="margin-top:1.2rem"><a class="btn ghost" href="/">Volver</a></p>
+{% endblock %}

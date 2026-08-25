@@ -1,0 +1,70 @@
+{% extends "base.html" %}
+{% set seccion = 'viajes' %}
+{% block main_class %}wide{% endblock %}
+{% block title %}Viajes · {{ app_name }}{% endblock %}
+{% block content %}
+<h1>Viajes</h1>
+{% include "_adminnav.html" %}
+
+<form method="get" action="/admin/viajes" class="inline-form" style="margin-bottom:1rem">
+  <select name="estado" style="width:auto">
+    <option value="">Todos los estados</option>
+    {% for e in estados %}
+      <option value="{{ e }}" {{ 'selected' if estado == e }}>{{ ESTADO_LABEL[e] }}</option>
+    {% endfor %}
+  </select>
+  <input type="hidden" name="user_id" value="{{ user_id }}">
+  <button class="ghost small" type="submit">Filtrar</button>
+  {% if estado or user_id %}<a class="btn ghost small" href="/admin/viajes">Quitar filtros</a>{% endif %}
+</form>
+
+<div class="card scroll" style="padding:0.3rem 0.6rem">
+<table>
+  <thead>
+    <tr><th>#</th><th>Fecha</th><th>Usuario</th><th>Trayecto</th>
+      <th class="num">Km</th><th class="num">Pax</th><th class="num">Importe</th>
+      <th>Estado</th><th>Acciones</th></tr>
+  </thead>
+  <tbody>
+  {% for v in viajes %}
+    <tr>
+      <td><a href="/viajes/{{ v.id }}">{{ v.id }}</a></td>
+      <td>{{ v.fecha_viaje.strftime('%d/%m/%y') }}</td>
+      <td>{{ usuarios[v.user_id].alias if v.user_id in usuarios else '?' }}</td>
+      <td>{{ v.ruta or (v.origen ~ ' → ' ~ v.destino) }}{% if v.ida_vuelta %} <span class="hint">(i/v)</span>{% endif %}</td>
+      <td class="num">{{ '%.1f'|format(v.km_total) }}</td>
+      <td class="num">{{ v.pasajeros }}{{ '*' if v.reparto_aplicado }}</td>
+      <td class="num">{{ '%.2f'|format(v.coste_usuario) }} €</td>
+      <td><span class="stamp flat {{ v.estado.value|lower }}">{{ ESTADO_LABEL[v.estado.value] }}</span></td>
+      <td>
+        {% if v.estado.value in ('PENDIENTE_PAGO', 'PENDIENTE_PREPAGO') %}
+        <div class="inline-form">
+          <form method="post" action="/admin/viajes/{{ v.id }}/pagar" class="inline-form">
+            <input type="hidden" name="csrf" value="{{ csrf_token }}">
+            <input name="importe" type="text" inputmode="decimal" value="{{ '%.2f'|format(v.coste_usuario) }}" aria-label="Importe cobrado">
+            <select name="metodo" style="width:auto;padding:0.3rem;font-size:0.78rem">
+              <option value="bizum">Bizum</option>
+              <option value="efectivo">Efectivo</option>
+              <option value="transferencia">Transferencia</option>
+            </select>
+            <button class="small" type="submit">Cobrado</button>
+          </form>
+          <form method="post" action="/admin/viajes/{{ v.id }}/cancelar"
+                onsubmit="return confirm('¿Cancelar el viaje #{{ v.id }}? Dejará de contar como deuda.')">
+            <input type="hidden" name="csrf" value="{{ csrf_token }}">
+            <button class="danger small" type="submit">Cancelar</button>
+          </form>
+        </div>
+        {% else %}
+          <span class="hint">—</span>
+        {% endif %}
+      </td>
+    </tr>
+  {% else %}
+    <tr><td colspan="9" class="empty">No hay viajes con esos filtros.</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+<p class="hint">* el importe se repartió entre los pasajeros.</p>
+{% endblock %}

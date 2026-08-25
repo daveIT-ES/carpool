@@ -1,0 +1,307 @@
+{% extends "base.html" %}
+{% block title %}Registrar viaje · {{ app_name }}{% endblock %}
+{% block head_extra %}
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+{% endblock %}
+{% block content %}
+
+<h1>Registrar viaje</h1>
+<p class="lead">Busca la dirección o toca el mapa. Verás el importe antes de confirmar.</p>
+
+<form method="post" action="/viajes" id="form-viaje">
+  <input type="hidden" name="csrf" value="{{ csrf_token }}">
+  <input type="hidden" name="puntos_json" id="puntos_json" value="[]">
+  <input type="hidden" name="ida_vuelta" id="ida_vuelta" value="">
+
+  <div class="card">
+    <p class="step"><b>1</b> Desde dónde sales</p>
+    <div class="punto" data-rol="origen">
+      <div class="buscador">
+        <input type="text" class="q" placeholder="Dirección, pueblo, sitio…" autocomplete="off">
+        <button type="button" class="ghost small gps" title="Usar mi ubicación">Mi ubicación</button>
+      </div>
+      <div class="sugerencias"></div>
+      <div class="elegido"></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <p class="step"><b>2</b> Paradas por el camino <span class="opt">— opcional, hasta {{ max_paradas }}</span></p>
+    <div id="paradas"></div>
+    <button type="button" id="add-parada" class="ghost small">Añadir parada</button>
+  </div>
+
+  <div class="card">
+    <p class="step"><b>3</b> A dónde vas</p>
+    <div class="punto" data-rol="destino">
+      <div class="buscador">
+        <input type="text" class="q" placeholder="Dirección, pueblo, sitio…" autocomplete="off">
+      </div>
+      <div class="sugerencias"></div>
+      <div class="elegido"></div>
+    </div>
+  </div>
+
+  <div class="card" style="padding:0.5rem">
+    <div id="mapa"></div>
+    <p class="hint" style="margin:0.5rem 0.4rem 0.2rem">
+      Toca el mapa para fijar el punto que estés rellenando.
+      {% if favoritos %}Atajos:
+        {% for f in favoritos %}<button type="button" class="chip" data-lat="{{ f.lat }}" data-lon="{{ f.lon }}" data-nombre="{{ f.nombre }}">{{ f.nombre }}</button>{% endfor %}
+      {% endif %}
+    </p>
+  </div>
+
+  <div class="card">
+    <div class="row">
+      <div>
+        <label for="fecha_viaje">Fecha</label>
+        <input id="fecha_viaje" name="fecha_viaje" type="date" value="{{ hoy }}" required>
+      </div>
+      <div>
+        <label for="pasajeros">Pasajeros que comparten el gasto</label>
+        <input id="pasajeros" name="pasajeros" type="number" min="1" max="6" value="1" required>
+      </div>
+    </div>
+    <label for="notas">Notas (opcional)</label>
+    <input id="notas" name="notas" type="text" maxlength="200" placeholder="Hora, equipaje, lo que sea">
+    <div class="notice">
+      A partir de {{ '%.0f'|format(umbral_reparto) }} km de ida el importe se reparte entre los
+      pasajeros. Por debajo, cada pasajero paga el trayecto entero.
+      Si te toca pagar más de {{ '%.2f'|format(umbral_prepago) }} €, se abona por adelantado.
+    </div>
+  </div>
+
+  <div id="presupuesto"></div>
+  <button class="wide-btn" type="submit" id="confirmar" disabled>Confirmar viaje</button>
+</form>
+
+<template id="tpl-parada">
+  <div class="punto parada-fila" data-rol="parada">
+    <div class="buscador">
+      <input type="text" class="q" placeholder="Parada…" autocomplete="off">
+      <button type="button" class="ghost small quitar">Quitar</button>
+    </div>
+    <div class="sugerencias"></div>
+    <div class="elegido"></div>
+  </div>
+</template>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+(function () {
+  const form = document.getElementById("form-viaje");
+  const caja = document.getElementById("presupuesto");
+  const confirmar = document.getElementById("confirmar");
+  const paradasBox = document.getElementById("paradas");
+  const tpl = document.getElementById("tpl-parada");
+  const campoJson = document.getElementById("puntos_json");
+  const idaVuelta = document.getElementById("ida_vuelta");
+  const MAX = {{ max_paradas }};
+
+  const mapa = L.map("mapa").setView([{{ mapa_lat }}, {{ mapa_lon }}], {{ mapa_zoom }});
+  L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
+    maxZoom: 19,
+    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+  }).addTo(mapa);
+
+  let marcadores = [];
+  let linea = null;
+  let activo = null;          // bloque .punto que se está rellenando
+  let temporizador = null;
+
+  function bloques() {
+    return [
+      form.querySelector('.punto[data-rol="origen"]'),
+      ...paradasBox.querySelectorAll('.punto'),
+      form.querySelector('.punto[data-rol="destino"]')
+    ];
+  }
+
+  function puntoDe(b) {
+    return b && b.dataset.lat ? {
+      nombre: b.dataset.nombre,
+      lat: parseFloat(b.dataset.lat),
+      lon: parseFloat(b.dataset.lon)
+    } : null;
+  }
+
+  function fijar(bloque, p) {
+    bloque.dataset.lat = p.lat;
+    bloque.dataset.lon = p.lon;
+    bloque.dataset.nombre = p.nombre;
+    bloque.querySelector(".q").value = p.nombre;
+    bloque.querySelector(".sugerencias").innerHTML = "";
+    bloque.querySelector(".elegido").innerHTML =
+      '<span class="ok-punto">' + p.nombre + "</span>";
+    refrescar(true);
+  }
+
+  function refrescar(reiniciarVuelta) {
+    const lista = bloques().map(puntoDe).filter(Boolean);
+    campoJson.value = JSON.stringify(lista);
+
+    marcadores.forEach(m => mapa.removeLayer(m));
+    marcadores = [];
+    if (linea) { mapa.removeLayer(linea); linea = null; }
+    lista.forEach((p, i) => {
+      const etiqueta = i === 0 ? "Salida" : (i === lista.length - 1 ? "Destino" : "Parada " + i);
+      marcadores.push(L.marker([p.lat, p.lon]).addTo(mapa).bindTooltip(etiqueta));
+    });
+    if (lista.length > 1) {
+      linea = L.polyline(lista.map(p => [p.lat, p.lon]), { weight: 3, dashArray: "6 6" }).addTo(mapa);
+      mapa.fitBounds(linea.getBounds(), { padding: [40, 40] });
+    } else if (lista.length === 1) {
+      mapa.setView([lista[0].lat, lista[0].lon], 14);
+    }
+
+    if (reiniciarVuelta) idaVuelta.value = "";
+    clearTimeout(temporizador);
+    temporizador = setTimeout(estimar, 200);
+  }
+
+  async function estimar() {
+    const lista = JSON.parse(campoJson.value || "[]");
+    if (lista.length < 2) { caja.innerHTML = ""; confirmar.disabled = true; return; }
+    caja.innerHTML = '<div class="card"><p class="empty">Calculando el recorrido…</p></div>';
+    confirmar.disabled = true;
+    const datos = new FormData();
+    datos.append("puntos_json", campoJson.value);
+    datos.append("pasajeros", form.pasajeros.value || 1);
+    datos.append("ida_vuelta", idaVuelta.value);
+    try {
+      const r = await fetch("/viajes/calcular", { method: "POST", body: datos });
+      caja.innerHTML = await r.text();
+    } catch (e) {
+      caja.innerHTML = '<div class="card"><p class="empty">No se ha podido calcular. Reinténtalo.</p></div>';
+    }
+    confirmar.disabled = !caja.querySelector("[data-final]");
+  }
+
+  // --- Buscador ---
+  async function buscar(bloque) {
+    const q = bloque.querySelector(".q").value.trim();
+    const caja2 = bloque.querySelector(".sugerencias");
+    if (q.length < 3) { caja2.innerHTML = ""; return; }
+    const c = mapa.getCenter();
+    try {
+      const r = await fetch("/api/geo/buscar?q=" + encodeURIComponent(q)
+                            + "&lat=" + c.lat.toFixed(4) + "&lon=" + c.lng.toFixed(4));
+      const d = await r.json();
+      if (!d.resultados || !d.resultados.length) {
+        caja2.innerHTML = '<p class="hint">Sin resultados. Prueba con otra búsqueda o toca el mapa.</p>';
+        return;
+      }
+      caja2.innerHTML = d.resultados.map(s =>
+        '<button type="button" class="sug" data-lat="' + s.lat + '" data-lon="' + s.lon
+        + '" data-nombre="' + s.nombre.replace(/"/g, "&quot;") + '">' + s.nombre + "</button>"
+      ).join("");
+    } catch (e) {
+      caja2.innerHTML = '<p class="hint">No se ha podido buscar ahora mismo.</p>';
+    }
+  }
+
+  async function nombreDe(lat, lon) {
+    try {
+      const r = await fetch("/api/geo/inverso?lat=" + lat + "&lon=" + lon);
+      const d = await r.json();
+      return d.nombre || (lat.toFixed(4) + ", " + lon.toFixed(4));
+    } catch (e) {
+      return lat.toFixed(4) + ", " + lon.toFixed(4);
+    }
+  }
+
+  // --- Eventos delegados ---
+  let escribiendo = null;
+  form.addEventListener("input", function (ev) {
+    if (!ev.target.classList.contains("q")) return;
+    const bloque = ev.target.closest(".punto");
+    activo = bloque;
+    clearTimeout(escribiendo);
+    escribiendo = setTimeout(() => buscar(bloque), 400);
+  });
+
+  form.addEventListener("focusin", function (ev) {
+    if (ev.target.classList.contains("q")) activo = ev.target.closest(".punto");
+  });
+
+  form.addEventListener("keydown", function (ev) {
+    if (ev.target.classList.contains("q") && ev.key === "Enter") {
+      ev.preventDefault();
+      buscar(ev.target.closest(".punto"));
+    }
+  });
+
+  form.addEventListener("click", async function (ev) {
+    const sug = ev.target.closest(".sug");
+    if (sug) {
+      fijar(sug.closest(".punto"), {
+        nombre: sug.dataset.nombre,
+        lat: parseFloat(sug.dataset.lat),
+        lon: parseFloat(sug.dataset.lon)
+      });
+      return;
+    }
+    const chip = ev.target.closest(".chip");
+    if (chip) {
+      const destino = activo || bloques()[0];
+      fijar(destino, {
+        nombre: chip.dataset.nombre,
+        lat: parseFloat(chip.dataset.lat),
+        lon: parseFloat(chip.dataset.lon)
+      });
+      return;
+    }
+    if (ev.target.classList.contains("quitar")) {
+      ev.target.closest(".parada-fila").remove();
+      document.getElementById("add-parada").disabled = false;
+      refrescar(true);
+      return;
+    }
+    if (ev.target.classList.contains("gps")) {
+      const bloque = ev.target.closest(".punto");
+      const el = bloque.querySelector(".elegido");
+      if (!navigator.geolocation) {
+        el.innerHTML = '<p class="hint">Este navegador no da la ubicación. Busca la dirección.</p>';
+        return;
+      }
+      el.innerHTML = '<p class="hint">Buscando tu posición…</p>';
+      navigator.geolocation.getCurrentPosition(async function (pos) {
+        const la = pos.coords.latitude, lo = pos.coords.longitude;
+        fijar(bloque, { nombre: await nombreDe(la, lo), lat: la, lon: lo });
+      }, function () {
+        el.innerHTML = '<p class="hint">No hemos podido leer tu ubicación'
+          + (location.protocol === "https:" ? "." : ": hace falta entrar por HTTPS.")
+          + ' Busca la dirección a mano.</p>';
+      }, { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 });
+    }
+  });
+
+  document.getElementById("add-parada").addEventListener("click", function () {
+    if (paradasBox.querySelectorAll(".parada-fila").length >= MAX) return;
+    paradasBox.appendChild(tpl.content.cloneNode(true));
+    this.disabled = paradasBox.querySelectorAll(".parada-fila").length >= MAX;
+  });
+
+  mapa.on("click", async function (ev) {
+    const bloque = activo || bloques().find(b => !b.dataset.lat) || bloques()[0];
+    fijar(bloque, {
+      nombre: await nombreDe(ev.latlng.lat, ev.latlng.lng),
+      lat: ev.latlng.lat,
+      lon: ev.latlng.lng
+    });
+  });
+
+  form.pasajeros.addEventListener("change", function () { refrescar(false); });
+
+  caja.addEventListener("click", function (ev) {
+    const b = ev.target.closest("[data-vuelta]");
+    if (!b) return;
+    idaVuelta.value = b.dataset.vuelta;
+    estimar();
+  });
+
+  form.addEventListener("submit", function () { confirmar.disabled = true; });
+})();
+</script>
+{% endblock %}
