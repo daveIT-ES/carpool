@@ -22,6 +22,7 @@ from ..models import (
     User,
     Vehicle,
 )
+from ..notify import aviso_prueba, configurado
 from ..security import csrf_ok, hash_password, new_invite_code
 
 router = APIRouter(prefix="/admin")
@@ -320,6 +321,7 @@ def config(
         noche_desde=get_setting(session, "noche_desde"),
         noche_hasta=get_setting(session, "noche_hasta"),
         aviso_home=get_setting(session, "aviso_home"),
+        telegram_ok=configurado(),
     )
 
 
@@ -365,6 +367,23 @@ def guardar_config(
     _log(session, admin, "config", str(valores))
     session.commit()
     flash(request, "Parámetros guardados. Los viajes ya registrados no cambian.", "ok")
+    return redirect("/admin/config")
+
+
+@router.post("/probar-aviso")
+async def probar_aviso(
+    request: Request,
+    csrf: str = Form(""),
+    admin: User = Depends(require_admin),
+):
+    """Manda un mensaje de prueba por Telegram."""
+    if (r := _guard(request, csrf, "/admin/config")):
+        return r
+    ok, detalle = await aviso_prueba()
+    if ok:
+        flash(request, "Aviso de prueba enviado. Mira tu Telegram.", "ok")
+    else:
+        flash(request, f"No se ha podido enviar: {detalle}", "error")
     return redirect("/admin/config")
 
 

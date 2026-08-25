@@ -5,7 +5,7 @@ from datetime import date, datetime
 from decimal import Decimal
 from math import asin, cos, radians, sin, sqrt
 
-from fastapi import APIRouter, Depends, Form, Request
+from fastapi import APIRouter, BackgroundTasks, Depends, Form, Request
 from sqlmodel import Session, select
 
 from ..costing import calcular
@@ -13,6 +13,7 @@ from ..config import get_settings
 from ..database import get_decimal, get_session, get_setting
 from ..deps import deuda_de, flash, redirect, render, require_user
 from ..models import AuditLog, Payment, Place, Trip, TripStatus, User, Vehicle
+from ..notify import aviso_viaje
 from ..routing import MAX_PARADAS, Punto, RoutingError, ruta
 from ..security import csrf_ok, rate_limited
 
@@ -221,6 +222,7 @@ async def calcular_precio(
 @router.post("/viajes")
 async def crear_viaje(
     request: Request,
+    tareas: BackgroundTasks,
     fecha_viaje: str = Form(...),
     puntos_json: str = Form("[]"),
     ida_vuelta: str = Form(""),
@@ -294,6 +296,25 @@ async def crear_viaje(
         )
     )
     session.commit()
+
+    # Aviso al conductor. Va en segundo plano: si Telegram falla, el viaje
+    # ya está guardado y el usuario no espera de más.
+    tareas.add_task(
+        aviso_viaje,
+        {
+            "alias": user.alias,
+            "ruta": viaje.ruta,
+            "cuando": f"{fecha.strftime('%d/%m/%Y')}"
+                      + (f" a las {viaje.hora_salida}" if viaje.hora_salida else ""),
+            "km": viaje.km_total,
+            "importe": viaje.coste_usuario,
+            "pasajeros": viaje.pasajeros,
+            "nocturno": viaje.nocturno,
+            "recargo": viaje.recargo_importe,
+            "prepago": viaje.estado == TripStatus.PENDIENTE_PREPAGO,
+            "notas": viaje.notas,
+        },
+    )
 
     if viaje.estado == TripStatus.PENDIENTE_PREPAGO:
         flash(
