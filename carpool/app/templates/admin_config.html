@@ -49,6 +49,27 @@
     Cambiar estos valores no recalcula los viajes ya registrados.</div>
 </div>
 
+<h2>Avisos por Telegram</h2>
+<div class="card">
+  {% if telegram_ok %}
+    <p>Configurado. Recibirás un mensaje cada vez que alguien registre un viaje.</p>
+    <form method="post" action="/admin/probar-aviso">
+      <input type="hidden" name="csrf" value="{{ csrf_token }}">
+      <button class="small" type="submit">Enviar aviso de prueba</button>
+    </form>
+  {% else %}
+    <p class="empty">Sin configurar. No recibirás avisos.</p>
+    <div class="notice">
+      Habla con <b>@BotFather</b> en Telegram y crea un bot con /newbot.
+      Escríbele un mensaje a tu bot y abre
+      <code>https://api.telegram.org/bot&lt;TU_TOKEN&gt;/getUpdates</code>
+      para ver tu <code>chat_id</code>. Pon los dos valores en
+      <code>TELEGRAM_TOKEN</code> y <code>TELEGRAM_CHAT_ID</code> del fichero
+      <code>.env</code> y reinicia con <code>docker compose up -d</code>.
+    </div>
+  {% endif %}
+</div>
+
 <h2>Vehículos</h2>
 {% for v in vehiculos %}
 <div class="card">
