@@ -46,7 +46,12 @@ else
   [ -f docker-compose.yml ] || fallo "no encuentro docker-compose.yml en el repositorio."
 fi
 
+# GitHub no conserva el permiso de ejecucion, hay que ponerlo aqui. Y se le
+# dice a git que ignore los cambios de permisos, para que un 'git pull'
+# posterior no choque con estas modificaciones locales.
 chmod +x scripts/*.sh 2>/dev/null || true
+git rev-parse --git-dir >/dev/null 2>&1 && git config core.fileMode false || true
+
 mkdir -p osrm-data
 
 # ---------------------------------------------------------------- .env
