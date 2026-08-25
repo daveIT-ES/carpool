@@ -65,7 +65,19 @@ cambiar el precio del combustible no altera el histórico.
 
 ---
 
-## Puesta en marcha
+## Instalación rápida
+
+```bash
+git clone https://github.com/daveIT-ES/carpool.git && bash carpool/carpool/scripts/install.sh
+```
+
+Un solo comando: genera las contraseñas, descarga y procesa el mapa, y arranca
+todo. Detalle completo en **[INSTALACION.md](INSTALACION.md)**; operación del
+día a día en **[OPERACIONES.md](OPERACIONES.md)**.
+
+---
+
+## Puesta en marcha paso a paso
 
 Requisitos: Docker y Docker Compose en el host (por ejemplo, una VM Debian
 sobre Proxmox). Reserva unos 4 GB de RAM y 15 GB de disco si vas a procesar el
