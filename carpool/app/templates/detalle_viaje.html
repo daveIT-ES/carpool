@@ -56,6 +56,11 @@
       <span class="stamp {{ viaje.estado.value|lower }}">{{ ESTADO_LABEL[viaje.estado.value] }}</span>
     </div>
 
+    {% if registrado_por and registrado_por.id != viaje.user_id %}
+    <p class="hint" style="margin-top:0.8rem">
+      Registrado por {{ registrado_por.alias }} en nombre de {{ dueno.alias }}.
+    </p>
+    {% endif %}
     {% if viaje.notas %}<p class="hint" style="margin-top:0.8rem">{{ viaje.notas }}</p>{% endif %}
   </div>
 </div>

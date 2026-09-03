@@ -57,6 +57,77 @@ España entera necesita bastante más RAM y disco que una comunidad autónoma.
 
 ---
 
+## Configuración: el fichero `.env`
+
+El instalador genera el `.env` a partir de la plantilla `env.env` y rellena
+solo lo imprescindible: las contraseñas, tu correo y `OSM_BASE`. El resto trae
+valores por defecto razonables.
+
+Para cambiar cualquier cosa:
+
+```bash
+cd ~/carpool/carpool
+nano .env
+docker compose up -d      # aplica los cambios
+```
+
+### Lo que el instalador ya deja hecho
+
+| Variable | |
+|---|---|
+| `SECRET_KEY` | Generada al azar |
+| `POSTGRES_PASSWORD` y `DATABASE_URL` | Generadas y sincronizadas |
+| `ADMIN_EMAIL` | El correo que le indicaste |
+| `ADMIN_PASSWORD` | Generada. La imprime al terminar |
+| `OSM_BASE` | Deducido de los ficheros de mapa generados |
+
+### Lo que querrás tocar tú
+
+**Avisos por Telegram.** Recibes un mensaje cada vez que alguien registra un
+viaje, con quién, la ruta, el importe y si requiere prepago.
+
+1. En Telegram, habla con **@BotFather** y crea un bot con `/newbot`. Te da un
+   token.
+2. Escribe cualquier mensaje a tu bot.
+3. Saca tu `chat_id`:
+
+```bash
+curl -s "https://api.telegram.org/bot<TU_TOKEN>/getUpdates" \
+  | grep -o '"chat":{"id":[0-9-]*'
+```
+
+4. Ponlos en el `.env` y reinicia:
+
+```bash
+nano .env
+# TELEGRAM_TOKEN=8123456789:AAH...
+# TELEGRAM_CHAT_ID=1510682175
+docker compose up -d
+```
+
+5. Comprueba en *Admin → Parámetros* con el botón **Enviar aviso de prueba**.
+
+**Centro del mapa.** Por defecto se abre en Tarragona. Cámbialo con
+`MAPA_LAT`, `MAPA_LON` y `MAPA_ZOOM`.
+
+**Buscador de direcciones.** Usa el servicio público de Photon, con Nominatim
+como reserva automática. Son servicios de terceros: las direcciones que buscan
+tus usuarios pasan por ellos. Si prefieres no depender de nadie, ambos se
+pueden autoalojar y solo hay que apuntar `PHOTON_URL` o `NOMINATIM_URL` a tu
+instancia.
+
+**Contraseña del administrador.** `ADMIN_PASSWORD` solo se usa en el primer
+arranque. Después:
+
+```bash
+./scripts/reset-password.sh tu@correo.com
+```
+
+> Guarda el `.env` en un gestor de contraseñas. No está en Git y sin
+> `SECRET_KEY` una restauración no queda limpia.
+
+---
+
 ## Publicar en internet
 
 La aplicación escucha en el **puerto 8080** de la máquina.

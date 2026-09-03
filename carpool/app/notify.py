@@ -59,6 +59,10 @@ async def aviso_viaje(datos: dict) -> None:
         cabecera,
         "",
         _linea("Quién", datos["alias"]),
+    ]
+    if datos.get("registrado_por"):
+        partes.append(_linea("Registrado por", datos["registrado_por"]))
+    partes += [
         _linea("Ruta", datos["ruta"]),
         _linea("Cuándo", datos["cuando"]),
         _linea("Distancia", f"{Decimal(datos['km']):.1f} km"),

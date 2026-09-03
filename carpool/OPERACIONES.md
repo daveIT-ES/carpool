@@ -114,6 +114,22 @@ with Session(engine) as s:
 
 ---
 
+## Registrar un viaje a nombre de otra persona
+
+Administrador → **Viajes** → *Registrar viaje a nombre de un usuario*. En el
+formulario aparece un selector arriba: eliges la persona y el viaje, la deuda y
+el importe se le cargan a ella.
+
+Útil para quien no ha llegado a registrarse, para corregir un viaje mal
+introducido (cancelas el viejo y registras el bueno) o para dar de alta un
+trayecto que ya se hizo.
+
+Dos diferencias respecto a un usuario normal:
+
+- El administrador **no se bloquea por deuda**, ni propia ni de la persona a
+  cuyo nombre registra. Si esa persona ya debía algo, el aviso lo indica.
+- El viaje guarda quién lo dio de alta, y se ve en su detalle y en el CSV.
+
 ## Deudas y cobros
 
 - **Marcar un viaje como pagado**: Administrador → **Viajes** → ajusta el importe si hace falta → *Cobrado*.
@@ -153,6 +169,34 @@ registrar el viaje; si la deja en blanco, no hay recargo.
 > Ten en cuenta que un recargo por tu tiempo ya no es reparto de gastos: es
 > una contraprestación. Revisa la nota sobre encaje legal del README antes de
 > ponerlo a un valor alto.
+
+## Avisos por Telegram
+
+Recibes un mensaje cada vez que alguien registra un viaje, con quién, la ruta,
+el importe y si requiere prepago.
+
+**Configurarlo:**
+
+1. En Telegram, habla con **@BotFather** y crea un bot con `/newbot`. Te da un
+   token.
+2. Escribe cualquier mensaje a tu bot recién creado.
+3. Abre `https://api.telegram.org/bot<TU_TOKEN>/getUpdates` y busca el
+   `"chat":{"id":...}`. Ese número es tu `chat_id`.
+4. Ponlos en el `.env`:
+
+```bash
+nano .env
+# TELEGRAM_TOKEN=123456:AAxxxxxxxx
+# TELEGRAM_CHAT_ID=987654321
+docker compose up -d
+```
+
+5. En *Admin → Parámetros* pulsa **Enviar aviso de prueba**.
+
+Si Telegram no responde, el viaje se guarda igual: el aviso se manda en
+segundo plano y solo deja una línea en `docker compose logs app`.
+
+Para desactivarlo, deja las dos variables vacías.
 
 ## Copias de seguridad
 

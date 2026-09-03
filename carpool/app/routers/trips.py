@@ -150,14 +150,25 @@ def nuevo_form(
     user: User = Depends(require_user),
     session: Session = Depends(get_session),
 ):
-    deuda = deuda_de(session, user.id)
-    if deuda > 0:
-        flash(
-            request,
-            f"Tienes {deuda:.2f} € pendientes. Liquida la deuda para poder registrar otro viaje.",
-            "error",
-        )
-        return redirect("/")
+    es_admin = user.role == "admin"
+
+    # El administrador puede registrar viajes a nombre de otros, asi que no se
+    # le aplica el bloqueo por deuda al abrir el formulario.
+    if not es_admin:
+        deuda = deuda_de(session, user.id)
+        if deuda > 0:
+            flash(
+                request,
+                f"Tienes {deuda:.2f} € pendientes. Liquida la deuda para poder registrar otro viaje.",
+                "error",
+            )
+            return redirect("/")
+
+    usuarios = []
+    if es_admin:
+        usuarios = session.exec(
+            select(User).where(User.is_active).order_by(User.alias)
+        ).all()
 
     favoritos = session.exec(
         select(Place).where(Place.activo).order_by(Place.nombre)
@@ -167,6 +178,8 @@ def nuevo_form(
         request,
         "nuevo_viaje.html",
         user=user,
+        es_admin=es_admin,
+        usuarios=usuarios,
         favoritos=favoritos,
         vehiculo=_vehiculo(session),
         hoy=date.today().isoformat(),
@@ -229,6 +242,7 @@ async def crear_viaje(
     pasajeros: int = Form(1),
     hora_salida: str = Form(""),
     notas: str = Form(""),
+    a_nombre_de: str = Form(""),
     csrf: str = Form(""),
     user: User = Depends(require_user),
     session: Session = Depends(get_session),
@@ -237,7 +251,20 @@ async def crear_viaje(
         flash(request, "La sesión ha caducado. Vuelve a enviar el formulario.", "error")
         return redirect("/viajes/nuevo")
 
-    if deuda_de(session, user.id) > 0:
+    # ¿A nombre de quien se registra? Solo el administrador puede elegirlo.
+    dueno = user
+    if user.role == "admin" and a_nombre_de.strip():
+        try:
+            destino = session.get(User, int(a_nombre_de))
+        except ValueError:
+            destino = None
+        if destino is None or not destino.is_active:
+            flash(request, "Ese usuario no existe o está desactivado.", "error")
+            return redirect("/viajes/nuevo")
+        dueno = destino
+
+    deuda_previa = deuda_de(session, dueno.id)
+    if deuda_previa > 0 and user.role != "admin":
         flash(request, "Tienes un pago pendiente. No puedes registrar otro viaje.", "error")
         return redirect("/")
 
@@ -261,7 +288,8 @@ async def crear_viaje(
         return redirect("/viajes/nuevo")
 
     viaje = Trip(
-        user_id=user.id,
+        user_id=dueno.id,
+        registrado_por_id=user.id,
         vehicle_id=vehiculo.id,
         origen=puntos[0].nombre,
         destino=puntos[-1].nombre,
@@ -288,11 +316,12 @@ async def crear_viaje(
     session.add(viaje)
     session.commit()
     session.refresh(viaje)
+    a_cuenta = "" if dueno.id == user.id else f" a nombre de {dueno.alias}"
     session.add(
         AuditLog(
             actor_id=user.id,
             accion="alta_viaje",
-            detalle=f"#{viaje.id} {viaje.ruta} · {viaje.coste_usuario} €",
+            detalle=f"#{viaje.id}{a_cuenta} {viaje.ruta} · {viaje.coste_usuario} €",
         )
     )
     session.commit()
@@ -302,7 +331,8 @@ async def crear_viaje(
     tareas.add_task(
         aviso_viaje,
         {
-            "alias": user.alias,
+            "alias": dueno.alias,
+            "registrado_por": None if dueno.id == user.id else user.alias,
             "ruta": viaje.ruta,
             "cuando": f"{fecha.strftime('%d/%m/%Y')}"
                       + (f" a las {viaje.hora_salida}" if viaje.hora_salida else ""),
@@ -316,7 +346,15 @@ async def crear_viaje(
         },
     )
 
-    if viaje.estado == TripStatus.PENDIENTE_PREPAGO:
+    if dueno.id != user.id:
+        aviso = (
+            f"Viaje registrado a nombre de {dueno.alias} por "
+            f"{viaje.coste_usuario:.2f} €."
+        )
+        if deuda_previa > 0:
+            aviso += f" Ojo: ya tenía {deuda_previa:.2f} € pendientes."
+        flash(request, aviso, "warn" if deuda_previa > 0 else "ok")
+    elif viaje.estado == TripStatus.PENDIENTE_PREPAGO:
         flash(
             request,
             f"Viaje registrado por {viaje.coste_usuario:.2f} €. Supera el límite de pago "
@@ -344,4 +382,15 @@ def detalle(
         select(Payment).where(Payment.trip_id == trip_id).order_by(Payment.id)
     ).all()
     dueno = session.get(User, viaje.user_id)
-    return render(request, "detalle_viaje.html", user=user, viaje=viaje, pagos=pagos, dueno=dueno)
+    registrado_por = (
+        session.get(User, viaje.registrado_por_id) if viaje.registrado_por_id else None
+    )
+    return render(
+        request,
+        "detalle_viaje.html",
+        user=user,
+        viaje=viaje,
+        pagos=pagos,
+        dueno=dueno,
+        registrado_por=registrado_por,
+    )

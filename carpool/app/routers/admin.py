@@ -429,14 +429,15 @@ def exportar(
     buf = io.StringIO()
     w = csv.writer(buf, delimiter=";")
     w.writerow(
-        ["id", "fecha", "usuario", "origen", "destino", "recorrido", "paradas",
+        ["id", "fecha", "usuario", "registrado_por", "origen", "destino", "recorrido", "paradas",
          "km_ida", "km_vuelta", "ida_vuelta", "km_total", "pasajeros", "reparto",
          "hora", "nocturno", "recargo_pct", "recargo", "coste_total",
          "coste_usuario", "estado"]
     )
     for t in viajes:
         w.writerow(
-            [t.id, t.fecha_viaje, usuarios.get(t.user_id, "?"), t.origen, t.destino,
+            [t.id, t.fecha_viaje, usuarios.get(t.user_id, "?"),
+             usuarios.get(t.registrado_por_id, ""), t.origen, t.destino,
              t.ruta, max(0, len(t.puntos or []) - 2),
              t.km_ida, t.km_vuelta, int(t.ida_vuelta), t.km_total, t.pasajeros,
              int(t.reparto_aplicado), t.hora_salida or "", int(t.nocturno),

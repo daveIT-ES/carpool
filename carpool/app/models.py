@@ -115,6 +115,9 @@ class Trip(SQLModel, table=True):
 
     estado: TripStatus = Field(default=TripStatus.PENDIENTE_PAGO, index=True)
     notas: Optional[str] = Field(default=None, max_length=500)
+    # Quien dio de alta el viaje. Distinto de user_id cuando lo registra
+    # el administrador a nombre de otra persona.
+    registrado_por_id: Optional[int] = Field(default=None, foreign_key="users.id")
     created_at: datetime = Field(default_factory=datetime.utcnow)
 
 

@@ -13,6 +13,21 @@
   <input type="hidden" name="puntos_json" id="puntos_json" value="[]">
   <input type="hidden" name="ida_vuelta" id="ida_vuelta" value="">
 
+  {% if es_admin %}
+  <div class="card">
+    <p class="step"><b>Admin</b> a nombre de quién</p>
+    <label for="a_nombre_de">Usuario</label>
+    <select id="a_nombre_de" name="a_nombre_de">
+      <option value="">Yo mismo ({{ user.alias }})</option>
+      {% for u in usuarios if u.id != user.id %}
+        <option value="{{ u.id }}">{{ u.alias }}</option>
+      {% endfor %}
+    </select>
+    <p class="hint">El viaje y la deuda se cargan a esa persona. Como
+      administrador puedes registrarlo aunque ya deba dinero.</p>
+  </div>
+  {% endif %}
+
   <div class="card">
     <p class="step"><b>1</b> Desde dónde sales</p>
     <div class="punto" data-rol="origen">
